@@ -1,0 +1,26 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# AI models
+*.gguf
+*.safetensors
+*.bin
+models/
+
+# Logs and temporary files
+*.log
+*.tmp
+.cache/
