@@ -1,12 +1,17 @@
 
 from pathlib import Path
+from core.paths import safe_path
 
 HOME = Path.home().resolve()
-WORKSPACE = (HOME / "AI-Agent-Workspace").resolve()
 PICTURES = (HOME / "Pictures").resolve()
 
 ALLOWED_TOOLS = {
+    "focus_window",
+    "list_windows",
     "list_files",
+    "list_settings_sections",
+    "open_settings_section",
+    "search_files",
     "read_file",
     "create_folder",
     "write_file",
@@ -17,9 +22,31 @@ ALLOWED_TOOLS = {
     "set_wallpaper",
     "set_brightness",
     "get_system_info",
+    "list_browsers",
+    "list_browser_profiles",
+    "open_browser",
 }
 
-READ_ONLY_TOOLS = {"list_files", "read_file", "get_system_info"}
+READ_ONLY_TOOLS = {
+    "list_windows",
+    "list_files",
+    "read_file",
+    "get_system_info",
+    "list_settings_sections",
+    "list_browsers",
+    "search_files",
+    "list_browser_profiles",
+}
+
+FILE_TOOLS = {
+    "list_files",
+    "read_file",
+    "search_files",
+    "create_folder",
+    "write_file",
+    "move_file",
+    "copy_file",
+}
 
 PROTECTED_PATHS = [
     Path("/boot"),
@@ -36,22 +63,43 @@ PROTECTED_PATHS = [
     Path("/root"),
 ]
 
+SYSTEM_INFO_TYPES = {
+    "time",
+    "day",
+    "date",
+    "datetime",
+    "ram",
+    "cpu",
+    "battery",
+    "disk",
+    "uptime",
+    "os",
+    "network",
+}
+
+
 def within(path, root):
     return path == root or root in path.parents
 
-def validate_action(name, args):
 
-    if name == "get_system_info":
-        if args.get("info_type") not in (
-            "time", "day", "date", "datetime"
+def validate_action(name, args):
+    # Validate the tool before anything else.
+
+    if name == "focus_window":
+        query = args.get("query")
+
+        if (
+            not isinstance(query, str)
+            or not query.strip()
+            or len(query) > 200
         ):
-            raise PermissionError("Invalid information type")
+            raise PermissionError(
+                "Invalid window search query"
+            )
+
         return
 
-    if name == "set_brightness":
-        level = args.get("level")
-        if type(level) is not int or not 1 <= level <= 100:
-            raise PermissionError("Invalid brightness level")
+    if name == "list_windows":
         return
 
     if name not in ALLOWED_TOOLS:
@@ -59,46 +107,154 @@ def validate_action(name, args):
             f"Tool '{name}' is not permitted"
         )
 
+    if name == "list_settings_sections":
+        return
+
+    if name == "open_settings_section":
+        section = args.get("section")
+
+        if (
+            not isinstance(section, str)
+            or not section.strip()
+            or len(section) > 100
+        ):
+            raise PermissionError(
+                "Invalid Settings section"
+            )
+
+        return
+
     if not isinstance(args, dict):
         raise PermissionError("Invalid tool arguments")
 
+    if name == "search_files":
+        path = args.get("path")
+
+        if not isinstance(path, str) or not path.strip():
+            raise PermissionError("Invalid search path")
+
+        safe_path(path)
+        return
+    
+    
+    if name == "list_browsers":
+        return
+
+    if name in ("list_browser_profiles", "open_browser"):
+        from tools.browser_manager import BROWSERS
+        from urllib.parse import urlsplit
+
+        browser = args.get("browser")
+
+        if not isinstance(browser, str) or browser not in BROWSERS:
+            raise PermissionError("Unsupported browser")
+
+        if name == "list_browser_profiles":
+            return
+
+        profile = args.get("profile")
+        if profile is not None:
+            if not isinstance(profile, str) or not profile.strip():
+                raise PermissionError("Invalid browser profile")
+
+        url = args.get("url")
+        if url is not None:
+            if not isinstance(url, str):
+                raise PermissionError("Invalid URL")
+            parsed = urlsplit(url)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+            ):
+                raise PermissionError("Unsupported URL")
+
+        return
+
+    # Read-only system information.
+    if name == "get_system_info":
+        if args.get("info_type") not in SYSTEM_INFO_TYPES:
+            raise PermissionError("Invalid information type")
+        return
+
+    # Brightness.
+    if name == "set_brightness":
+        level = args.get("level")
+
+        if type(level) is not int or not 1 <= level <= 100:
+            raise PermissionError("Invalid brightness level")
+
+        return
+
+    # GNOME theme.
     if name == "set_theme":
         if args.get("mode") not in ("dark", "light"):
             raise PermissionError("Invalid theme")
         return
 
+    # Wallpaper.
     if name == "set_wallpaper":
         filename = args.get("filename")
+
         if not isinstance(filename, str):
             raise PermissionError("Invalid wallpaper")
+
         path = (PICTURES / filename).resolve()
+
         if not within(path, PICTURES):
             raise PermissionError("Wallpaper path denied")
+
         return
 
+    # Application launching is controlled by the app tool.
     if name == "open_app":
         return
 
-    for field in ("path", "destination"):
-        if field not in args:
-            continue
+    # Filesystem operations.
+    if name in FILE_TOOLS:
+        required_fields = {
+            "list_files": ("path",),
+            "read_file": ("path",),
+            "create_folder": ("path",),
+            "write_file": ("path",),
+            "move_file": ("path", "destination"),
+            "copy_file": ("path", "destination"),
+        }
 
-        value = args[field]
-        if not isinstance(value, str):
-            raise PermissionError("Invalid path")
+        for field in required_fields[name]:
+            value = args.get(field)
 
-        path = (WORKSPACE / value).resolve()
+            if not isinstance(value, str) or not value.strip():
+                raise PermissionError(
+                    f"Missing or invalid '{field}'"
+                )
 
-        if any(
-            within(path, protected)
-            for protected in PROTECTED_PATHS
-        ):
-            raise PermissionError("Protected OS path")
+            # Resolve against the approved user folders.
+            path = safe_path(value)
 
-        if not within(path, WORKSPACE):
-            raise PermissionError(
-                "File access outside workspace denied"
-            )
+            # Defense-in-depth: refuse protected OS locations.
+            if any(
+                within(path, protected)
+                for protected in PROTECTED_PATHS
+            ):
+                raise PermissionError(
+                    "Protected operating-system path"
+                )
+
+        if name == "write_file":
+            content = args.get("content")
+
+            if not isinstance(content, str):
+                raise PermissionError("Invalid file content")
+
+            if len(content.encode("utf-8")) > 100_000:
+                raise PermissionError("File content too large")
+
+        return
+
+    raise PermissionError("Unsupported action")
+
 
 def needs_confirmation(name):
     return name not in READ_ONLY_TOOLS
