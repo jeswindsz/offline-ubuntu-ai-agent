@@ -1,18 +1,60 @@
-# Offline Ubuntu AI Agent — Phase 1
+# Offline Ubuntu AI Agent
 
-Requires Python 3.10+, Ollama running locally, and an already downloaded `qwen3:4b` model.
+An intelligent, privacy-focused desktop assistant built to interact with and control an Ubuntu Linux system using natural language commands. Powered by locally hosted Large Language Models (LLMs) through Ollama, the agent enables users to perform everyday desktop operations without depending on cloud-based AI services.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python agent.py
-```
+The project features two AI modes — a lightweight model for quick, routine tasks and a larger model for complex instructions and deep reasoning — providing a balance between speed and intelligence.
 
-If your model tag differs, set `AGENT_MODEL=your-model-tag python agent.py`.
+## Features
 
-All file operations are restricted to `~/AI-Agent-Workspace`. File deletion moves items into `.agent-trash` inside that workspace. Each mutating action requires approval. Application launching is allowlisted and also requires approval.
+- **Offline AI Processing:** Runs AI models locally using Ollama, keeping interactions on the user's machine.
+- **Natural Language Interaction:** Execute supported desktop operations using everyday language.
+- **Dual AI Model Modes:** Switch between lightweight processing and deeper reasoning.
+- **Application Management:** Launch and interact with supported desktop applications.
+- **File Management:** Perform supported file operations through natural language instructions.
+- **System Interaction:** Navigate and interact with selected Ubuntu desktop features.
+- **Safety and Confirmation:** Sensitive actions require user confirmation before execution.
 
-Examples: `Create a folder called Notes`, `Write a file Notes/todo.txt containing Buy milk`, `List files in Notes`, `Open Firefox`.
+## AI Model Modes
 
-Limitations: this is a text-only prototype. No microphone, speech output, arbitrary shell execution, GUI navigation, or general filesystem access. File names containing symlinks are resolved and denied if they point outside the workspace. For stronger isolation against untrusted local processes modifying the workspace concurrently, use OS sandboxing in a later phase.
+The agent supports two model modes designed for different levels of task complexity.
+
+### `/modelsmall` — Quick Processing
+
+Uses the smaller, lightweight AI model for simple and routine tasks.
+
+Suitable for:
+- Opening applications
+- Basic file operations
+- Simple desktop commands
+- Quick system navigation
+- Everyday assistant tasks
+
+This mode prioritizes faster responses and lower resource usage.
+
+### `/modelbig` — Deep Thinking
+
+Uses the larger AI model for complex instructions and tasks requiring more detailed reasoning.
+
+Suitable for:
+- Multi-step desktop instructions
+- Complex task interpretation
+- More detailed planning
+- Advanced command understanding
+- Tasks requiring deeper reasoning
+
+This mode prioritizes reasoning capability over response speed and may require more system resources.
+
+## Technologies Used
+
+- Python
+- Ollama
+- Qwen3
+- Ubuntu Linux
+- GNOME Desktop Environment
+- D-Bus
+
+## Project Objective
+
+The objective of this project is to develop a locally running AI desktop assistant capable of understanding natural language and performing useful computer operations securely.
+
+By combining offline AI processing with multiple model modes, the project aims to provide a practical Linux assistant that balances privacy, performance, and intelligent desktop automation.
